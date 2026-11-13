@@ -22,13 +22,15 @@ It replaces a Mushroom cover card with card_mod. One JavaScript file, no depende
 
 | Do | Result |
 |---|---|
-| Tap up, stop or down | Retract, stop or lower the screen. A button is disabled when it does not apply (up when retracted, down when fully out, stop when not moving) and while the screen is unavailable |
+| Tap up, stop or down | Retract, stop or lower the screen. Up is disabled when retracted and down when fully out (not while the screen travels); stop is always available. All three are disabled while the screen is unavailable |
 | Drag the picture down or up | Set a position: down is further out, about 100 px of travel for the whole range, starting from where the screen is now. Snaps to 5 %, and to 0, 25, 50, 75 and 100 % close by. A dashed line shows the target; let go to send it |
 | Tap the picture or the text | `tap_action` (default: more-info of the screen; signal strength is there, under the device) |
 | Tap the lantern | `lantern_tap_action` (default: toggle) |
 | Hold | `hold_action` / `lantern_hold_action` (default: more-info) |
 
 Every action goes through Home Assistant's own action handler; the screen buttons and the drag are `perform-action` calls to `cover.open_cover`, `cover.close_cover`, `cover.stop_cover` and `cover.set_cover_position`.
+
+Moving: motion_blinds never reports `opening` or `closing`. On a command it jumps straight to the target position and reports the real position when the motor stops. So the card treats the screen as travelling for `travel_time` (scaled by the distance) after its own command or after any position jump, draws it moving from the old to the new position, and shows `Lowering…` or `Raising…`. If the real position arrives early (the remote stopped it, say), that ends the travel. Covers that do report `opening` and `closing` work as well.
 
 Position direction: for this screen (motion_blinds) 100 is open, which means retracted. The card shows it the way you see it: position 40 is `60 % out`.
 
@@ -56,6 +58,7 @@ That is all for the owner's own house. Everything else is optional, in YAML or t
 | `wind_warning` | `40` | km/h gusts from which the card warns |
 | `dark_below` | `10` | lx; only used when `dark` is an illuminance sensor (10 lx, the same as the Garden Lights automation) |
 | `retract_offset` | `120` | minutes before sunset the evening automation retracts the screen; `null` hides `Up at` |
+| `travel_time` | `15` | seconds the screen takes for the whole range (see below) |
 | `tap_action`, `hold_action` | more-info | picture and text, on the screen entity |
 | `lantern_tap_action`, `lantern_hold_action` | toggle, more-info | on the lantern entity |
 | `colors` | `out` orange, `wind` amber | any CSS colour |
@@ -79,10 +82,12 @@ A full example is in [`gardenview-house.yaml`](gardenview-house.yaml).
 | Decision | Why |
 |---|---|
 | A drawing of the real facade instead of an icon | the card tells at a glance whether the screen is out, and the doors and lantern come along for free |
-| Line art: white surfaces, bold black outlines, black glass | the same style as the car in the Tesla Model 3 Card |
+| Line art: white surfaces, bold black outlines, black glass | the same style as the car in the Tesla Model 3 Card; the brick pier with the lantern is red brick with white frame edges, like the real wall |
 | Camera about 25 degrees off straight on | at 45 degrees the open leaves cover the doorway and the room behind it does not show |
 | Solid grey cloth, colour only in the hem | the real cloth is grey with light stripes; the orange hem says "out" without painting the whole picture |
 | Drag on the picture instead of a slider | a slider looked like a light dimmer |
+| Travel window instead of trusting `opening`/`closing` | motion_blinds jumps to the target at once and never reports moving; without it Stop was never enabled and the card never showed movement |
+| Stop always enabled | stop_cover on a still screen is harmless, and the card cannot know for sure the motor has stopped |
 | Relative drag, 100 px for the whole range | the front bar only moves about 40 px in the picture; following the finger exactly was too twitchy |
 | "No auto up" once the retract moment has passed | the automation runs once, 2 h before sunset; a screen lowered after that stays out tonight |
 | Dark dims the house, not the lights | the lit rooms and the lantern stand out |
