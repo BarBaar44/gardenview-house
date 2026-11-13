@@ -28,6 +28,7 @@ Automation "Close Sunscreen" (do not change it from here): 2 h before sunset, if
 * Drag: relative (`GH_DRAG_PX` = 100 px for the whole range, from the current out), snaps to 5 % and to 0/25/50/75/100 within 4 %. A drag starts only after 8 px vertical movement and only when set position is supported; until then a tap stays a tap. The lantern's tap circle (r 9 in viewBox units, about 40 px) takes precedence over the picture tap; it is hidden without a `lantern` entity.
 * The target (`_target`) is the card's own command, shown as `45 → 100 % out` and a dashed ghost line while moving; cleared once reached, on stop, or when unavailable.
 * Dark: `dark` entity (on/off, or numeric below `dark_below`), else the sun below the horizon. Dark greys the house (`X()` colour map in `ghScene`), keeps glass, rooms and lantern lit, and dims text and buttons to 70 %.
+* The cloth comes out at 30 degrees below horizontal (confirmed by Bb; constant `PITCH` in `GH`).
 * Drawing style: the Tesla card's line art (white surfaces, `#111` outlines, black glass). The screen cloth is solid grey with light stripes (Bb chose solid over see-through); colour only in the hem (`--gh-out`, `--gh-wind` in wind).
 * Camera: 65 degrees to the wall (about 25 off straight on) from the left. At 45 degrees the open leaves cover the doorways; do not go back without checking the open-door states. The kitchen door hinges on the right; the French doors open outward, both leaves from one sensor unless `garden_door_2` is set. The viewBox is fixed (screen fully out included) so the picture never jumps.
 * The picture is rebuilt only when its inputs change (`_sceneKey`); text and buttons update in place. Re-render only when one of the card's own entities changes, plus a 60 s tick for "Up at" / "No auto up".
@@ -40,7 +41,6 @@ Automation "Close Sunscreen" (do not change it from here): 2 h before sunset, if
 ## Open
 
 * `dark` is not known yet (default `null`, so the sun decides). Lantern `light.rear_garden`, doors `binary_sensor.door_sensor_garden_doors_contact` (one sensor, both leaves) and `binary_sensor.door_sensor_kitchen_contact` are set; the door sensors report `device_class: window`, which the card ignores (it only reads on = open).
-* The 30 degree pitch is drawn below horizontal; confirm with Bb (constant `PITCH` in `GH`).
 
 ## Releasing
 
