@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tag must match VERSION in gardenview-house.js
+        run: |
+          FILE_VERSION=$(grep -oP 'const VERSION = "\K[^"]+' gardenview-house.js)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "file: $FILE_VERSION  tag: $TAG_VERSION"
+          test "$FILE_VERSION" = "$TAG_VERSION"
+
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v tag="## ${GITHUB_REF_NAME}" '
+            $0 == tag { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No section '## ${GITHUB_REF_NAME}' in CHANGELOG.md"; exit 1; }
+          cat notes.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gardenview-house.js
+          body_path: notes.md
