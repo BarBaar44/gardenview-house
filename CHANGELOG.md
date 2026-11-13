@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0
+
+- The whole ground floor wall is now drawn as brick, like the real house: the walls left of the French doors and right of the kitchen window, and the strip under the kitchen side window, in the same softened red brick as the pier with the lantern. The white door and window frames form the edge.
+
 ## v0.1.2
 
 - Fix: the animation jumped to the retracted position while the screen was still moving. motion_blinds polls the motor during a move, and the first poll can still read the starting position; the card took any report other than the target as "stopped here". Now a position reported during the travel is progress: the card carries on from that real position towards the target, with the time left for that distance. If the motor really stopped there, the travel ends on the last reported position.
