@@ -17,7 +17,7 @@
 // Everything sits in one block so the top-level names cannot clash with the
 // sister cards when the files are loaded as classic scripts.
 {
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 
 const GH_HOLD_MS = 500;
 const GH_MOVE_PX = 8;
@@ -505,9 +505,13 @@ class GardenviewHouse extends HTMLElement {
     this._hold = null;
     const t = this._travel && now < this._travel.until ? this._travel : null;
     if (t) {
-      if (newOut === t.to) return; // the jump to the target the card asked for
-      this._travel = null; // the real position when the motor stopped early
-      this._quietUntil = now + GH_LATE_MS;
+      if (newOut === t.to) return; // the jump to the target (or the final position)
+      // A position polled while the motor runs (motion_blinds polls during a move; the first
+      // poll can still read the starting position). Not a stop: carry on from the real
+      // position towards the target, with the time left for that distance. If the motor did
+      // stop there, the window ends and the card shows the last reported position.
+      const ms = Math.max(GH_MIN_TRAVEL_MS, this._config.travelMs * Math.abs(t.to - newOut) / 100);
+      this._travel = { from: newOut, to: t.to, start: now, until: now + ms };
       return;
     }
     if (now < this._quietUntil) return; // the final report after a travel or a stop
