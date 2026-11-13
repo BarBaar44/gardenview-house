@@ -17,18 +17,22 @@
 // Everything sits in one block so the top-level names cannot clash with the
 // sister cards when the files are loaded as classic scripts.
 {
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 const GH_HOLD_MS = 500;
 const GH_MOVE_PX = 8;
 const GH_DRAG_PX = 100; // finger travel for 0 to 100 % out
 const GH_TICK_MS = 60000; // "Up at" / "No auto up" follow the clock
+const GH_TRAVEL_TICK_MS = 250; // redraw rate while the screen travels
+const GH_MIN_TRAVEL_MS = 2000;
+const GH_LATE_MS = 5000; // a final position report this long after a travel ends is not a new move
 
 const GH_DEFAULTS = {
   name: "Sun screen",
   wind_warning: 40, // km/h gusts: warn while the screen is out
   dark_below: 10, // lx, only when `dark` is an illuminance sensor (10 lx, as the Garden Lights automation)
   retract_offset: 120, // minutes before sunset the automation retracts the screen; null hides it
+  travel_time: 15, // seconds for the whole range (motion_blinds reports the target at once, the real position when the motor stops)
   entities: {
     cover: "cover.sun_screen",
     sun: "sun.sun",
@@ -226,6 +230,12 @@ function ghScene(o) {
     if (x !== null) s += line([x, 1.0, 0.02], [x, 1.18, 0.02], 'stroke="#111" stroke-width="1.6" stroke-linecap="round"');
   }
 
+  // brick pier between the French doors and the kitchen door, white frame (kozijn) strips on both sides
+  {
+    s += poly(rect(3.0, 3.85, 0, 2.95), dark ? "#5e3328" : "#a4513b", S);
+    for (let y = 0.17; y < 2.95; y += 0.17) s += line([3.0, y, 0], [3.85, y, 0], `stroke="${dark ? "#7a4a3c" : "#c98b7a"}" stroke-width=".5"`);
+    s += poly(rect(3.0, 3.07, 0, 2.55), X("#fff"), T) + poly(rect(3.78, 3.85, 0, 2.55), X("#fff"), T);
+  }
   // lantern: black housing, cap and bracket; the pane glows while it is on
   {
     const lx0 = 3.34; const lx1 = 3.54; const ly0 = 1.52; const ly1 = 1.82; const lz = 0.12;
@@ -341,7 +351,11 @@ class GardenviewHouse extends HTMLElement {
     this._seen = Object.create(null);
     this._ids = [];
     this._tick = null;
-    this._target = null; // % out the card asked for, shown until the screen stops
+    this._travel = null; // { from, to, start, until }: % out while the screen travels (see _onPosChange)
+    this._hold = null; // { out, until }: position shown after stop, until the motor reports the real one
+    this._quietUntil = 0;
+    this._lastPos = undefined;
+    this._fast = null;
     this._drag = null; // % out under the finger while dragging
     this._uid = `gh${Math.random().toString(36).slice(2, 7)}`;
   }
@@ -357,10 +371,10 @@ class GardenviewHouse extends HTMLElement {
   setConfig(config) {
     const c = config || {};
     const known = ["type", "name", "entities", "wind_warning", "dark_below", "retract_offset",
-      "tap_action", "hold_action", "lantern_tap_action", "lantern_hold_action", "colors",
+      "travel_time", "tap_action", "hold_action", "lantern_tap_action", "lantern_hold_action", "colors",
       "grid_options", "layout_options", "view_layout", "visibility", "card_mod"];
     for (const k of Object.keys(c)) {
-      if (!known.includes(k)) throw new Error(`Unknown option '${k}'. Known: ${known.slice(1, 11).join(", ")}`);
+      if (!known.includes(k)) throw new Error(`Unknown option '${k}'. Known: ${known.slice(1, 12).join(", ")}`);
     }
     const ent = c.entities == null ? {} : c.entities;
     if (typeof ent !== "object" || Array.isArray(ent)) throw new Error("entities must be a map, e.g. cover: cover.my_screen");
@@ -396,6 +410,7 @@ class GardenviewHouse extends HTMLElement {
       wind: number("wind_warning", 1, 300),
       darkBelow: number("dark_below", 0, 100000),
       offset: number("retract_offset", 0, 720),
+      travelMs: number("travel_time", 1, 300) * 1000,
       tap_action: c.tap_action || { action: "more-info" },
       hold_action: c.hold_action || { action: "more-info" },
       lantern_tap_action: c.lantern_tap_action || { action: "toggle" },
@@ -405,7 +420,10 @@ class GardenviewHouse extends HTMLElement {
     this._applyColors(this._config.colors);
     this._ids = Object.values(entities).filter(Boolean);
     this._seen = Object.create(null);
-    this._target = null;
+    this._travel = null;
+    this._hold = null;
+    this._quietUntil = 0;
+    this._lastPos = undefined;
     this._drag = null;
     this._build();
     if (this._hass) this._update();
@@ -432,6 +450,7 @@ class GardenviewHouse extends HTMLElement {
       if (s !== this._seen[id]) {
         this._seen[id] = s;
         changed = true;
+        if (id === this._config.entities.cover) this._watchCover(s);
       }
     }
     if (changed) this._update();
@@ -449,6 +468,86 @@ class GardenviewHouse extends HTMLElement {
   disconnectedCallback() {
     clearInterval(this._tick);
     this._tick = null;
+    clearInterval(this._fast);
+    this._fast = null;
+  }
+
+  _now() {
+    return Date.now();
+  }
+
+  /* ---- travel ------------------------------------------------------------- */
+
+  /*
+   * motion_blinds never reports opening or closing: on a command it jumps to the
+   * target position at once and reports the real position when the motor stops
+   * (about 15 s for the whole range). So the card treats the screen as moving
+   * for travel_time × distance after its own command, or after a position jump
+   * it did not cause, and draws it travelling from the old to the new position.
+   */
+  _posOf(s) {
+    if (!s || GH_BAD.includes(ghKey(s.state))) return null;
+    let pos = ghNum(s.attributes && s.attributes.current_position);
+    if (pos === null) pos = ghKey(s.state) === "closed" ? 0 : 100;
+    return Math.max(0, Math.min(100, pos));
+  }
+
+  _watchCover(s) {
+    const pos = this._posOf(s);
+    if (pos === null) { this._travel = null; this._hold = null; this._lastPos = undefined; return; }
+    if (this._lastPos !== undefined && pos !== this._lastPos) this._onPosChange(Math.round(100 - this._lastPos), Math.round(100 - pos));
+    this._lastPos = pos;
+  }
+
+  _onPosChange(prevOut, newOut) {
+    const now = this._now();
+    this._hold = null;
+    const t = this._travel && now < this._travel.until ? this._travel : null;
+    if (t) {
+      if (newOut === t.to) return; // the jump to the target the card asked for
+      this._travel = null; // the real position when the motor stopped early
+      this._quietUntil = now + GH_LATE_MS;
+      return;
+    }
+    if (now < this._quietUntil) return; // the final report after a travel or a stop
+    this._startTravel(prevOut, newOut); // a move the card did not cause (automation, remote)
+  }
+
+  _startTravel(from, to) {
+    if (from === to) return;
+    const now = this._now();
+    const ms = Math.max(GH_MIN_TRAVEL_MS, this._config.travelMs * Math.abs(to - from) / 100);
+    this._travel = { from, to, start: now, until: now + ms };
+    this._hold = null;
+  }
+
+  /* % out to show now: estimated while travelling, held after stop, else as reported. */
+  _shownOut(reported, now) {
+    const t = this._travel;
+    if (t) {
+      const f = Math.min(1, (now - t.start) / (t.until - t.start));
+      return Math.round(t.from + (t.to - t.from) * f);
+    }
+    if (this._hold && now < this._hold.until) return this._hold.out;
+    return reported;
+  }
+
+  _cmd(to, service, data) {
+    const now = this._now();
+    const st = this._state(now);
+    this._startTravel(st.out, to);
+    this._run({ action: "perform-action", perform_action: service, target: { entity_id: this._config.entities.cover }, ...(data ? { data } : {}) }, "tap");
+    this._update();
+  }
+
+  _stop() {
+    const now = this._now();
+    const st = this._state(now);
+    this._travel = null;
+    this._hold = { out: st.out, until: now + this._config.travelMs };
+    this._quietUntil = now + this._config.travelMs;
+    this._run({ action: "perform-action", perform_action: "cover.stop_cover", target: { entity_id: this._config.entities.cover } }, "tap");
+    this._update();
   }
 
   getCardSize() {
@@ -491,14 +590,13 @@ class GardenviewHouse extends HTMLElement {
     this._el.hit.setAttribute("cy", ghF(GH.lantern[1]));
     this._sceneKey = null;
 
-    const svc = (service, data) => ({ action: "perform-action", perform_action: service, target: { entity_id: this._config.entities.cover }, ...(data ? { data } : {}) });
     const button = (el, fn) => {
       el.addEventListener("click", (e) => { e.stopPropagation(); if (!el.disabled) fn(); });
       el.addEventListener("pointerdown", (e) => e.stopPropagation());
     };
-    button(this._el.up, () => { this._target = 0; this._run(svc("cover.open_cover"), "tap"); this._update(); });
-    button(this._el.down, () => { this._target = 100; this._run(svc("cover.close_cover"), "tap"); this._update(); });
-    button(this._el.stop, () => { this._target = null; this._run(svc("cover.stop_cover"), "tap"); this._update(); });
+    button(this._el.up, () => this._cmd(0, "cover.open_cover"));
+    button(this._el.down, () => this._cmd(100, "cover.close_cover"));
+    button(this._el.stop, () => this._stop());
     this._bindPress(this._el.txt, this._config.entities.cover, "tap_action", "hold_action");
     this._bindPicture();
   }
@@ -567,7 +665,7 @@ class GardenviewHouse extends HTMLElement {
       if (mode === "screen" && Math.abs(e.clientY - start.y) > GH_MOVE_PX && this._canSet()) {
         clearTimeout(timer); timer = null;
         mode = "drag";
-        start.out = this._state(Date.now()).out;
+        start.out = this._state(this._now()).out;
         pic.classList.add("dragging");
         try { pic.setPointerCapture(e.pointerId); } catch (_) { /* not supported */ }
       }
@@ -615,11 +713,7 @@ class GardenviewHouse extends HTMLElement {
   }
 
   _setOut(out) {
-    this._target = out;
-    this._run({
-      action: "perform-action", perform_action: "cover.set_cover_position",
-      target: { entity_id: this._config.entities.cover }, data: { position: 100 - out },
-    }, "tap");
+    this._cmd(out, "cover.set_cover_position", { position: 100 - out });
   }
 
   /* Hands an action to Home Assistant's own handler, like built-in cards do. */
@@ -674,11 +768,17 @@ class GardenviewHouse extends HTMLElement {
     const cv = this._s("cover");
     const cs = cv ? ghKey(cv.state) : "unavailable";
     const unavailable = !cv || GH_BAD.includes(cs);
-    let pos = cv ? ghNum(cv.attributes && cv.attributes.current_position) : null;
-    if (pos === null) pos = cs === "closed" ? 0 : 100;
-    pos = Math.max(0, Math.min(100, pos));
-    const out = unavailable ? 0 : Math.round(100 - pos);
-    const moving = cs === "opening" ? "up" : cs === "closing" ? "down" : null;
+    const pos = this._posOf(cv);
+    if (this._travel && (unavailable || now >= this._travel.until)) {
+      this._quietUntil = Math.max(this._quietUntil, this._travel.until + GH_LATE_MS);
+      this._travel = null;
+    }
+    if (unavailable) this._hold = null;
+    const reported = unavailable || pos === null ? 0 : Math.round(100 - pos);
+    const out = unavailable ? 0 : this._shownOut(reported, now);
+    const t = this._travel;
+    const moving = t ? (t.to > t.from ? "down" : "up") : cs === "opening" ? "up" : cs === "closing" ? "down" : null;
+    const target = t ? t.to : null;
 
     const sun = this._s("sun");
     const sunUp = sun ? ghKey(sun.state) === "above_horizon" : null;
@@ -719,7 +819,7 @@ class GardenviewHouse extends HTMLElement {
 
     const doorsKnown = { g1: this._on("garden_door"), g2: this._config.entities.garden_door_2 ? this._on("garden_door_2") : this._on("garden_door"), k: this._on("kitchen_door") };
     return {
-      unavailable, out, moving, sunUp, elevation, dark, gust, windy, temp, retract,
+      unavailable, out, moving, target, travelling: !!t, sunUp, elevation, dark, gust, windy, temp, retract,
       lamp: this._on("lantern"), doors: doorsKnown,
     };
   }
@@ -727,10 +827,11 @@ class GardenviewHouse extends HTMLElement {
   _update() {
     if (!this._hass || !this._el) return;
     const e = this._el;
-    const st = this._state(Date.now());
-    if (!st.moving && this._drag === null && this._target !== null && Math.abs(st.out - this._target) <= 1) this._target = null;
-    if (st.unavailable) this._target = null;
-    const target = this._drag !== null ? this._drag : st.moving ? this._target : null;
+    const st = this._state(this._now());
+    const target = this._drag !== null ? this._drag : st.target;
+    // redraw a few times a second while the screen travels
+    if (st.travelling && !this._fast) this._fast = setInterval(() => this._update(), GH_TRAVEL_TICK_MS);
+    if (!st.travelling && this._fast) { clearInterval(this._fast); this._fast = null; }
 
     // Picture: only redrawn when something in it changes.
     const scene = {
@@ -760,7 +861,7 @@ class GardenviewHouse extends HTMLElement {
       line = "Release to set";
     } else if (st.moving) {
       big = st.moving === "down" ? "Lowering…" : "Raising…";
-      line = this._target !== null ? `${st.out} → ${this._target} % out` : `${st.out} % out`;
+      line = st.target !== null ? `${st.out} → ${st.target} % out` : `${st.out} % out`;
     } else if (st.out <= 0) {
       big = "Retracted";
       if (st.windy) { line = `Gusts ${Math.round(st.gust)} km/h`; warn = true; }
@@ -788,9 +889,11 @@ class GardenviewHouse extends HTMLElement {
     e.line.classList.toggle("warn", warn);
 
     // Buttons: only what applies now.
-    e.up.disabled = st.unavailable || st.out <= 0 || st.moving === "up";
-    e.down.disabled = st.unavailable || st.out >= 100 || st.moving === "down";
-    e.stop.disabled = st.unavailable || !st.moving;
+    // While travelling the reported position is the target, not where the screen is: up and down stay on.
+    // Stop is always on (stop_cover on a still screen is harmless).
+    e.up.disabled = st.unavailable || (!st.travelling && st.out <= 0);
+    e.down.disabled = st.unavailable || (!st.travelling && st.out >= 100);
+    e.stop.disabled = st.unavailable;
     e.up.classList.toggle("hot", st.windy && st.out > 0 && !st.unavailable);
 
     const label = st.unavailable ? "unavailable" : st.out <= 0 ? "retracted" : `${st.out} % out`;
@@ -827,6 +930,7 @@ const GH_NUMBER_FIELDS = [
   ["wind_warning", "Wind warning from gusts of", 1, 300, "km/h"],
   ["dark_below", "Dark below (illuminance sensor)", 0, 100000, "lx"],
   ["retract_offset", "Automation retracts before sunset", 0, 720, "min"],
+  ["travel_time", "Travel time, whole range", 1, 300, "s"],
 ];
 
 const GH_EDITOR_SCHEMA = [

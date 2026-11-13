@@ -60,11 +60,11 @@ const same = (a, b, msg) => assert.deepStrictEqual(JSON.parse(JSON.stringify(a))
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
-test("retracted: words, sun and temperature, up and stop off", () => {
+test("retracted: words, sun and temperature; up off, stop always on", () => {
   const r = read(render(states()));
   assert.strictEqual(r.big, "Retracted");
   assert.strictEqual(r.line, "Sun 38° · 21 °C");
-  assert(!r.up && !r.stop && r.down);
+  assert(!r.up && r.stop && r.down);
   assert(!/class="cloth/.test(r.scene), "no cloth when retracted");
 });
 
@@ -75,7 +75,7 @@ test("out: position 40 reads 60 % out, auto retract time from next_setting minus
   const due = new Date(Date.parse(s["sun.sun"].attributes.next_setting) - 120 * MIN);
   const sameDay = due.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
   assert.strictEqual(r.line, sameDay ? `Up at ${clock(due.toISOString())}` : "No auto up");
-  assert(r.up && !r.stop && r.down);
+  assert(r.up && r.stop && r.down);
   assert(/class="cloth"/.test(r.scene));
   assert(/class="hem"/.test(r.scene));
 });
@@ -105,26 +105,103 @@ test("no current_position: state decides (closed = fully out)", () => {
   assert.strictEqual(read(render(states({ cs: "open", pos: null }))).big, "Retracted");
 });
 
-test("moving: Lowering and Raising, stop on, the moving direction off", () => {
+test("opening/closing states (other integrations): Lowering and Raising", () => {
   let r = read(render(states({ cs: "closing", pos: 60 })));
   assert.strictEqual(r.big, "Lowering…");
   assert.strictEqual(r.line, "40 % out");
-  assert(r.stop && !r.down && r.up);
+  assert(r.stop && r.up && r.down);
   r = read(render(states({ cs: "opening", pos: 60 })));
   assert.strictEqual(r.big, "Raising…");
-  assert(r.stop && !r.up && r.down);
 });
 
-test("moving after a card command: target shown as text and ghost line", () => {
-  const c = render(states({ pos: 100 }));
-  c._setOut(75);
-  c.hass = hass(states({ cs: "closing", pos: 70 }));
-  const r = read(c);
-  assert.strictEqual(r.line, "30 → 75 % out");
+/* A card on a fake clock: motion_blinds jumps to the target at once. */
+function clocked(s, config) {
+  const c = new Card();
+  let now = 1e12;
+  c._now = () => now;
+  c.tick = (ms) => { now += ms; c._update(); };
+  w.document.body.appendChild(c);
+  c.setConfig(config || {});
+  c.hass = hass(s);
+  return c;
+}
+
+test("travel: a card command shows Lowering for travel_time, though the cover jumps to the target", () => {
+  const c = clocked(states({ pos: 100 }));
+  c._el.down.click();
+  let r = read(c);
+  assert.strictEqual(r.big, "Lowering…");
+  assert.strictEqual(r.line, "0 → 100 % out");
   assert(/class="ghost"/.test(r.scene));
-  c.hass = hass(states({ cs: "open", pos: 25 }));
-  assert.strictEqual(c._target, null, "target cleared once reached");
-  assert(!/class="ghost"/.test(read(c).scene));
+  assert(c._el.card.classList.contains("moving"));
+  c.hass = hass(states({ cs: "closed", pos: 0 })); // the jump
+  assert.strictEqual(read(c).big, "Lowering…", "still travelling after the jump");
+  c.tick(7500); // half of 15 s
+  r = read(c);
+  assert.strictEqual(r.line, "50 → 100 % out");
+  assert(r.up && r.down && r.stop, "up and down stay on while travelling");
+  c.tick(8000);
+  r = read(c);
+  assert.strictEqual(r.big, "100% out");
+  assert(!r.down && r.up && r.stop);
+  assert(!/class="ghost"/.test(r.scene));
+  c.hass = hass({ ...states({ cs: "closed", pos: 0 }), "sun.sun": st("above_horizon", { elevation: 30 }) });
+  assert.strictEqual(read(c).big, "100% out", "a later update does not start a travel");
+});
+
+test("travel: duration follows the distance; set position from the drag", () => {
+  const c = clocked(states({ pos: 100 }));
+  const got = actions(c);
+  c._setOut(25);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(got[0].config.tap_action.data)), { position: 75 });
+  c.hass = hass(states({ pos: 75 }));
+  c.tick(2000);
+  assert.strictEqual(read(c).big, "Lowering…", "25 % of 15 s is 3.75 s");
+  c.tick(2000);
+  assert.strictEqual(read(c).big, "25% out");
+});
+
+test("travel: a jump the card did not cause (automation, remote) also travels", () => {
+  const c = clocked(states({ pos: 40 }));
+  c.hass = hass(states({ pos: 100 })); // evening automation retracts
+  const r = read(c);
+  assert.strictEqual(r.big, "Raising…");
+  assert.strictEqual(r.line, "60 → 0 % out");
+  c.tick(10000);
+  assert.strictEqual(read(c).big, "Retracted");
+  c.tick(1000);
+  c.hass = hass(states({ pos: 100, t: 22 }));
+  assert.strictEqual(read(c).big, "Retracted");
+});
+
+test("travel: the real position when the motor stops early ends the travel, no new one", () => {
+  const c = clocked(states({ pos: 100 }));
+  c._el.down.click();
+  c.hass = hass(states({ cs: "closed", pos: 0 }));
+  c.tick(6000);
+  c.hass = hass(states({ pos: 55 })); // stopped at 45 % out (e.g. the remote)
+  const r = read(c);
+  assert.strictEqual(r.big, "45% out");
+  assert(!c._el.card.classList.contains("moving"));
+});
+
+test("stop: always on; holds the estimated position until the motor reports", () => {
+  const c = clocked(states({ pos: 100 }));
+  const got = actions(c);
+  c._el.down.click();
+  c.hass = hass(states({ cs: "closed", pos: 0 }));
+  c.tick(6000); // 40 %
+  c._el.stop.click();
+  assert.strictEqual(got[got.length - 1].config.tap_action.perform_action, "cover.stop_cover");
+  let r = read(c);
+  assert.strictEqual(r.big, "40% out", "held, not the reported target");
+  c.tick(1000);
+  c.hass = hass(states({ pos: 62 })); // real position after the stop
+  r = read(c);
+  assert.strictEqual(r.big, "38% out");
+  assert(!c._el.card.classList.contains("moving"), "not a new travel");
+  const still = clocked(states({ pos: 70 }));
+  assert(read(still).stop, "stop on while still");
 });
 
 test("unavailable: every button off, words", () => {
@@ -201,11 +278,10 @@ test("lantern: pane lit while on; tap area hidden without an entity", () => {
 });
 
 test("buttons: open, close and stop through hass-action perform-action", () => {
-  const c = render(states({ cs: "closing", pos: 50 }));
+  const c = render(states({ pos: 50 }));
   const got = actions(c);
   c._el.up.click();
   c._el.stop.click();
-  c.hass = hass(states({ pos: 50 }));
   c._el.down.click();
   same(got.map((d) => d.config.tap_action.perform_action), ["cover.open_cover", "cover.stop_cover", "cover.close_cover"]);
   same(got[0].config.tap_action.target, { entity_id: "cover.sun_screen" });
@@ -256,6 +332,7 @@ test("config errors", () => {
   bad({ entities: { cover: null } }, /cover is required/);
   bad({ wind_warning: 0 }, /wind_warning/);
   bad({ dark_below: "x" }, /dark_below/);
+  bad({ travel_time: 0 }, /travel_time/);
   bad({ tap_action: "toggle" }, /tap_action must be an action/);
   bad({ colors: ["orange"] }, /colors must be a map/);
   new Card().setConfig({ grid_options: { columns: 12, rows: 2 }, colors: { out: "red" } });
@@ -273,6 +350,7 @@ test("editor: defaults round trip to a bare config", () => {
   assert.strictEqual(data.entities.lantern, "light.rear_garden");
   assert.strictEqual(data.entities.dark, "sensor.outdoor_sensor_illuminance");
   assert.strictEqual(data.dark_below, 10);
+  assert.strictEqual(data.travel_time, 15);
   assert.strictEqual(data.wind_warning, 40);
   same(Editor.toConfig(data, { type: "custom:gardenview-house" }), { type: "custom:gardenview-house" });
 });
