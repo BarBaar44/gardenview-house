@@ -174,12 +174,48 @@ test("travel: a jump the card did not cause (automation, remote) also travels", 
   assert.strictEqual(read(c).big, "Retracted");
 });
 
-test("travel: the real position when the motor stops early ends the travel, no new one", () => {
+test("travel: positions polled while the motor runs do not end the travel", () => {
+  const c = clocked(states({ pos: 100 }));
+  c._el.down.click(); // retracted -> 100 % out, 15 s
+  c.hass = hass(states({ cs: "closed", pos: 0 })); // the jump to the target
+  c.tick(2000);
+  c.hass = hass(states({ pos: 100 })); // first poll: still reads the start (0 % out)
+  let r = read(c);
+  assert.strictEqual(r.big, "Lowering…", "not Retracted");
+  assert.strictEqual(r.line, "0 → 100 % out");
+  c.tick(6000);
+  c.hass = hass(states({ pos: 55 })); // poll: 45 % out
+  r = read(c);
+  assert.strictEqual(r.big, "Lowering…");
+  assert.strictEqual(r.line, "45 → 100 % out", "re-anchored on the real position");
+  c.tick(4125); // half of the 55 % left (8.25 s)
+  assert.strictEqual(read(c).line, "73 → 100 % out");
+  c.hass = hass(states({ cs: "closed", pos: 0 })); // final position = target: still travelling
+  assert.strictEqual(read(c).big, "Lowering…");
+  c.tick(4200);
+  assert.strictEqual(read(c).big, "100% out");
+});
+
+test("travel: raising, a stale poll does not jump to Retracted early", () => {
+  const c = clocked(states({ cs: "closed", pos: 0 }));
+  c._el.up.click(); // 100 % out -> retracted
+  c.hass = hass(states({ pos: 100 })); // the jump to retracted
+  c.tick(3000);
+  c.hass = hass(states({ pos: 15 })); // poll: 85 % out
+  const r = read(c);
+  assert.strictEqual(r.big, "Raising…");
+  assert.strictEqual(r.line, "85 → 0 % out");
+  assert(!/>Retracted</.test(c._el.big.outerHTML));
+});
+
+test("travel: the motor stopped early (remote): the window ends on the last reported position", () => {
   const c = clocked(states({ pos: 100 }));
   c._el.down.click();
   c.hass = hass(states({ cs: "closed", pos: 0 }));
   c.tick(6000);
-  c.hass = hass(states({ pos: 55 })); // stopped at 45 % out (e.g. the remote)
+  c.hass = hass(states({ pos: 55 })); // stopped at 45 % out
+  assert.strictEqual(read(c).big, "Lowering…", "the card cannot tell a stop from a poll yet");
+  c.tick(9000); // 55 % of 15 s = 8.25 s
   const r = read(c);
   assert.strictEqual(r.big, "45% out");
   assert(!c._el.card.classList.contains("moving"));

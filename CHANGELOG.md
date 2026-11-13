@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.2
+
+- Fix: the animation jumped to the retracted position while the screen was still moving. motion_blinds polls the motor during a move, and the first poll can still read the starting position; the card took any report other than the target as "stopped here". Now a position reported during the travel is progress: the card carries on from that real position towards the target, with the time left for that distance. If the motor really stopped there, the travel ends on the last reported position.
+
 ## v0.1.1
 
 - Moving screen: motion_blinds never reports opening or closing; on a command it jumps straight to the target and reports the real position when the motor stops. The card now treats the screen as travelling for `travel_time` (15 s for the whole range, scaled by the distance) after its own command or after any position jump: "Lowering…" / "Raising…", the hem pulse, and the cloth drawn moving from the old to the new position. The real position arriving early (stopped by the remote, say) ends the travel.

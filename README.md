@@ -30,7 +30,7 @@ It replaces a Mushroom cover card with card_mod. One JavaScript file, no depende
 
 Every action goes through Home Assistant's own action handler; the screen buttons and the drag are `perform-action` calls to `cover.open_cover`, `cover.close_cover`, `cover.stop_cover` and `cover.set_cover_position`.
 
-Moving: motion_blinds never reports `opening` or `closing`. On a command it jumps straight to the target position and reports the real position when the motor stops. So the card treats the screen as travelling for `travel_time` (scaled by the distance) after its own command or after any position jump, draws it moving from the old to the new position, and shows `Lowering…` or `Raising…`. If the real position arrives early (the remote stopped it, say), that ends the travel. Covers that do report `opening` and `closing` work as well.
+Moving: motion_blinds never reports `opening` or `closing`. On a command it jumps straight to the target position and reports the real position when the motor stops. So the card treats the screen as travelling for `travel_time` (scaled by the distance) after its own command or after any position jump, draws it moving from the old to the new position, and shows `Lowering…` or `Raising…`. Positions polled while the motor runs move the estimate to the real position; when the travel ends, the card shows the last reported position. Covers that do report `opening` and `closing` work as well.
 
 Position direction: for this screen (motion_blinds) 100 is open, which means retracted. The card shows it the way you see it: position 40 is `60 % out`.
 
