@@ -67,10 +67,10 @@ That is all for the owner's own house. Everything else is optional, in YAML or t
 | `temperature` | `sensor.outdoor_temperature` | |
 | `wind_gust` | `sensor.openweathermap_wind_gust_speed` | km/h (m/s and mph are converted) |
 | `dark` | none | a `binary_sensor`, `input_boolean` or `switch` (on = dark) or an illuminance sensor (below `dark_below`). None: dark while the sun is below the horizon |
-| `lantern` | none | light or switch |
-| `garden_door` | none | French doors; one sensor opens both leaves |
+| `lantern` | `light.rear_garden` | light or switch |
+| `garden_door` | `binary_sensor.door_sensor_garden_doors_contact` | French doors; one sensor opens both leaves. Any device class works (on = open) |
 | `garden_door_2` | none | second leaf of the French doors, if it has its own sensor |
-| `kitchen_door` | none | |
+| `kitchen_door` | `binary_sensor.door_sensor_kitchen_contact` | |
 
 A full example is in [`gardenview-house.yaml`](gardenview-house.yaml).
 

@@ -176,6 +176,17 @@ test("doors: open doors show a room; one sensor opens both garden leaves", () =>
   assert.strictEqual((read(render(s2, { entities: two })).scene.match(/<clipPath/g) || []).length, 1, "second leaf has its own sensor");
 });
 
+test("defaults: Bb's lantern and door sensors work with no config", () => {
+  const s = states({ extra: {
+    "light.rear_garden": st("on"),
+    "binary_sensor.door_sensor_garden_doors_contact": st("on", { device_class: "window" }),
+    "binary_sensor.door_sensor_kitchen_contact": st("on", { device_class: "window" }),
+  } });
+  const r = read(render(s));
+  assert.strictEqual((r.scene.match(/<clipPath/g) || []).length, 3, "both garden leaves and the kitchen door");
+  assert(/fill="#ffd54f" class="pane"/.test(r.scene));
+});
+
 test("lantern: pane lit while on; tap area hidden without an entity", () => {
   const ent = { lantern: "light.lantern" };
   const on = render(states({ extra: { "light.lantern": st("on") } }), { entities: ent });
@@ -183,7 +194,7 @@ test("lantern: pane lit while on; tap area hidden without an entity", () => {
   const off = render(states({ extra: { "light.lantern": st("off") } }), { entities: ent });
   assert(/fill="#555" class="pane"/.test(read(off).scene));
   assert.strictEqual(off._el.hit.style.display, "");
-  assert.strictEqual(render(states())._el.hit.style.display, "none");
+  assert.strictEqual(render(states(), { entities: { lantern: null } })._el.hit.style.display, "none");
 });
 
 test("buttons: open, close and stop through hass-action perform-action", () => {
@@ -256,7 +267,8 @@ test("colours: keys set CSS variables", () => {
 test("editor: defaults round trip to a bare config", () => {
   const data = Editor.toData({});
   assert.strictEqual(data.entities.cover, "cover.sun_screen");
-  assert.strictEqual(data.entities.lantern, "");
+  assert.strictEqual(data.entities.lantern, "light.rear_garden");
+  assert.strictEqual(data.entities.dark, "");
   assert.strictEqual(data.wind_warning, 40);
   same(Editor.toConfig(data, { type: "custom:gardenview-house" }), { type: "custom:gardenview-house" });
 });

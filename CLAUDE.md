@@ -39,7 +39,7 @@ Automation "Close Sunscreen" (do not change it from here): 2 h before sunset, if
 
 ## Open
 
-* Entity ids for `lantern`, `garden_door`, `kitchen_door` and `dark` are not known yet; their defaults are `null`. Fill them into `GH_DEFAULTS` once Bb gives them.
+* `dark` is not known yet (default `null`, so the sun decides). Lantern `light.rear_garden`, doors `binary_sensor.door_sensor_garden_doors_contact` (one sensor, both leaves) and `binary_sensor.door_sensor_kitchen_contact` are set; the door sensors report `device_class: window`, which the card ignores (it only reads on = open).
 * The 30 degree pitch is drawn below horizontal; confirm with Bb (constant `PITCH` in `GH`).
 
 ## Releasing

@@ -35,10 +35,10 @@ const GH_DEFAULTS = {
     temperature: "sensor.outdoor_temperature",
     wind_gust: "sensor.openweathermap_wind_gust_speed",
     dark: null, // binary_sensor / input_boolean (on = dark) or an illuminance sensor; null: sun below the horizon
-    lantern: null, // light or switch of the garden lantern
-    garden_door: null, // French doors (one sensor opens both leaves)
+    lantern: "light.rear_garden", // light or switch of the garden lantern
+    garden_door: "binary_sensor.door_sensor_garden_doors_contact", // French doors (one sensor opens both leaves)
     garden_door_2: null, // optional second leaf of the French doors
-    kitchen_door: null,
+    kitchen_door: "binary_sensor.door_sensor_kitchen_contact",
   },
 };
 
