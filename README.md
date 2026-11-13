@@ -34,7 +34,9 @@ Position direction: for this screen (motion_blinds) 100 is open, which means ret
 
 ## Install
 
-HACS → three dots → Custom repositories → `https://github.com/BarBaar44/gardenview-house`, category Dashboard. Install, then reload the browser.
+Home Assistant 2026.11 and newer: Settings → Marketplace → Add from link → `https://github.com/BarBaar44/gardenview-house` (type Dashboard), then Install and reload the browser. The resource is served from `/local/community/gardenview-house/gardenview-house.js`.
+
+Older Home Assistant: HACS → three dots → Custom repositories → the same link, category Dashboard.
 
 ## Configuration
 

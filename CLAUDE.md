@@ -1,6 +1,6 @@
 # Gardenview House: notes for working on this repo
 
-HACS dashboard card (Lovelace) for the sun screen on the back of the owner's house, drawn as the garden facade. Owner: BarBaar44 (Bb). Sister repos with the same conventions: [appliance-card](https://github.com/BarBaar44/appliance-card) (the reference), [espresso-card](https://github.com/BarBaar44/espresso-card), [tesla-model3-card](https://github.com/BarBaar44/tesla-model3-card) (the drawing style), [vacuum-card](https://github.com/BarBaar44/vacuum-card), [room-card](https://github.com/BarBaar44/room-card), [climate-card](https://github.com/BarBaar44/climate-card).
+Marketplace (formerly HACS) dashboard card (Lovelace) for the sun screen on the back of the owner's house, drawn as the garden facade. Owner: BarBaar44 (Bb). Sister repos with the same conventions: [appliance-card](https://github.com/BarBaar44/appliance-card) (the reference), [espresso-card](https://github.com/BarBaar44/espresso-card), [tesla-model3-card](https://github.com/BarBaar44/tesla-model3-card) (the drawing style), [vacuum-card](https://github.com/BarBaar44/vacuum-card), [room-card](https://github.com/BarBaar44/room-card), [climate-card](https://github.com/BarBaar44/climate-card).
 
 ## Files
 
@@ -8,10 +8,10 @@ HACS dashboard card (Lovelace) for the sun screen on the back of the owner's hou
 |---|---|
 | `gardenview-house.js` | The whole card: plain custom element, no build step, no dependencies. `GH_DEFAULTS` holds the owner's entities and thresholds, `GH_COLORS` the colours, `GH` the camera and geometry, `ghScene` the drawing. |
 | `tests/gardenview-house.test.js` | jsdom tests: texts, retract time, buttons, moving and target, wind, dark, doors, lantern, actions, drag, redraws, config errors, editor round trips. `npm test`. |
-| `hacs.json` | HACS manifest (HA 2024.11+). |
-| `README.md` | User docs, also the HACS info page. Keep the option, role and decision tables in sync with the code. |
+| `hacs.json` | Manifest for the Home Assistant Marketplace (HACS became the Marketplace in HA 2026.11; same file, same validation action). |
+| `README.md` | User docs, also the Marketplace info page. Keep the option, role and decision tables in sync with the code. |
 | `CHANGELOG.md` | One `## vX.Y.Z` section per release; the Release workflow uses it as the release notes. |
-| `shot.png` | README image, linked by absolute raw URL so it renders in HACS. |
+| `shot.png` | README image, linked by absolute raw URL so it renders in the Marketplace. |
 | `gardenview-house.yaml` | Minimal and full example configs. |
 
 ## The device
