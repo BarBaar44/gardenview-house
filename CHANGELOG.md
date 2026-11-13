@@ -5,7 +5,7 @@
 - Moving screen: motion_blinds never reports opening or closing; on a command it jumps straight to the target and reports the real position when the motor stops. The card now treats the screen as travelling for `travel_time` (15 s for the whole range, scaled by the distance) after its own command or after any position jump: "Lowering…" / "Raising…", the hem pulse, and the cloth drawn moving from the old to the new position. The real position arriving early (stopped by the remote, say) ends the travel.
 - Stop is always enabled (stop_cover on a still screen is harmless). After a stop the card holds the estimated position until the motor reports the real one.
 - Up and down are not disabled from the reported position while the screen travels: that position is the target, not where the screen is.
-- The wall between the French doors and the kitchen door is drawn as red brick, with the white frame edges on both sides.
+- The wall between the French doors and the kitchen door is drawn as muted red brick (kept in the background), with the white frame edges on both sides.
 - New option `travel_time` (seconds, 1 to 300, default 15), also in the visual editor.
 
 ## v0.1.0
