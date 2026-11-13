@@ -158,9 +158,10 @@ test("dark: sun below the horizon by default; a binary sensor or illuminance ove
   assert(read(render(states({ extra: bs("on") }), { entities: { dark: "binary_sensor.dark" } })).dark);
   assert(!read(render(states({ sun: "below_horizon", extra: bs("off") }), { entities: { dark: "binary_sensor.dark" } })).dark);
   const lx = (v) => ({ "sensor.lux": st(v, { unit_of_measurement: "lx" }) });
-  assert(read(render(states({ extra: lx(20) }), { entities: { dark: "sensor.lux" } })).dark);
+  assert(read(render(states({ extra: lx(5) }), { entities: { dark: "sensor.lux" } })).dark);
+  assert(!read(render(states({ extra: lx(20) }), { entities: { dark: "sensor.lux" } })).dark, "default threshold 10 lx");
   assert(!read(render(states({ extra: lx(800) }), { entities: { dark: "sensor.lux" } })).dark);
-  assert(!read(render(states({ extra: lx(20) }), { entities: { dark: "sensor.lux" }, dark_below: 10 })).dark);
+  assert(read(render(states({ extra: lx(20) }), { entities: { dark: "sensor.lux" }, dark_below: 50 })).dark, "custom threshold");
   r = read(render(states({ sun: "below_horizon", extra: lx("unavailable") }), { entities: { dark: "sensor.lux" } }));
   assert(r.dark, "unavailable sensor: falls back to the sun");
 });
@@ -181,10 +182,12 @@ test("defaults: Bb's lantern and door sensors work with no config", () => {
     "light.rear_garden": st("on"),
     "binary_sensor.door_sensor_garden_doors_contact": st("on", { device_class: "window" }),
     "binary_sensor.door_sensor_kitchen_contact": st("on", { device_class: "window" }),
+    "sensor.outdoor_sensor_illuminance": st(4, { unit_of_measurement: "lx" }),
   } });
   const r = read(render(s));
   assert.strictEqual((r.scene.match(/<clipPath/g) || []).length, 3, "both garden leaves and the kitchen door");
   assert(/fill="#ffd54f" class="pane"/.test(r.scene));
+  assert(r.dark, "4 lx is below the default 10 lx");
 });
 
 test("lantern: pane lit while on; tap area hidden without an entity", () => {
@@ -268,7 +271,8 @@ test("editor: defaults round trip to a bare config", () => {
   const data = Editor.toData({});
   assert.strictEqual(data.entities.cover, "cover.sun_screen");
   assert.strictEqual(data.entities.lantern, "light.rear_garden");
-  assert.strictEqual(data.entities.dark, "");
+  assert.strictEqual(data.entities.dark, "sensor.outdoor_sensor_illuminance");
+  assert.strictEqual(data.dark_below, 10);
   assert.strictEqual(data.wind_warning, 40);
   same(Editor.toConfig(data, { type: "custom:gardenview-house" }), { type: "custom:gardenview-house" });
 });

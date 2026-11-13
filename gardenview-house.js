@@ -27,14 +27,14 @@ const GH_TICK_MS = 60000; // "Up at" / "No auto up" follow the clock
 const GH_DEFAULTS = {
   name: "Sun screen",
   wind_warning: 40, // km/h gusts: warn while the screen is out
-  dark_below: 50, // lx, only when `dark` is an illuminance sensor
+  dark_below: 10, // lx, only when `dark` is an illuminance sensor (10 lx, as the Garden Lights automation)
   retract_offset: 120, // minutes before sunset the automation retracts the screen; null hides it
   entities: {
     cover: "cover.sun_screen",
     sun: "sun.sun",
     temperature: "sensor.outdoor_temperature",
     wind_gust: "sensor.openweathermap_wind_gust_speed",
-    dark: null, // binary_sensor / input_boolean (on = dark) or an illuminance sensor; null: sun below the horizon
+    dark: "sensor.outdoor_sensor_illuminance", // binary_sensor / input_boolean (on = dark) or an illuminance sensor; null: sun below the horizon
     lantern: "light.rear_garden", // light or switch of the garden lantern
     garden_door: "binary_sensor.door_sensor_garden_doors_contact", // French doors (one sensor opens both leaves)
     garden_door_2: null, // optional second leaf of the French doors

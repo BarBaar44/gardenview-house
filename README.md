@@ -54,7 +54,7 @@ That is all for the owner's own house. Everything else is optional, in YAML or t
 | `name` | `Sun screen` | |
 | `entities` | see below | |
 | `wind_warning` | `40` | km/h gusts from which the card warns |
-| `dark_below` | `50` | lx; only used when `dark` is an illuminance sensor |
+| `dark_below` | `10` | lx; only used when `dark` is an illuminance sensor (10 lx, the same as the Garden Lights automation) |
 | `retract_offset` | `120` | minutes before sunset the evening automation retracts the screen; `null` hides `Up at` |
 | `tap_action`, `hold_action` | more-info | picture and text, on the screen entity |
 | `lantern_tap_action`, `lantern_hold_action` | toggle, more-info | on the lantern entity |
@@ -66,7 +66,7 @@ That is all for the owner's own house. Everything else is optional, in YAML or t
 | `sun` | `sun.sun` | sun or moon, elevation, next sunset |
 | `temperature` | `sensor.outdoor_temperature` | |
 | `wind_gust` | `sensor.openweathermap_wind_gust_speed` | km/h (m/s and mph are converted) |
-| `dark` | none | a `binary_sensor`, `input_boolean` or `switch` (on = dark) or an illuminance sensor (below `dark_below`). None: dark while the sun is below the horizon |
+| `dark` | `sensor.outdoor_sensor_illuminance` | a `binary_sensor`, `input_boolean` or `switch` (on = dark) or an illuminance sensor (below `dark_below`). Unavailable or `null`: dark while the sun is below the horizon |
 | `lantern` | `light.rear_garden` | light or switch |
 | `garden_door` | `binary_sensor.door_sensor_garden_doors_contact` | French doors; one sensor opens both leaves. Any device class works (on = open) |
 | `garden_door_2` | none | second leaf of the French doors, if it has its own sensor |

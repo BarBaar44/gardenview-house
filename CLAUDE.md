@@ -38,9 +38,9 @@ Automation "Close Sunscreen" (do not change it from here): 2 h before sunset, if
 * The whole file sits in one block scope so its top-level names cannot clash with sister cards loaded as classic scripts; `const VERSION` stays on its own line for the Release workflow.
 * Out of scope (Bb's call): party decorations, anything not about the screen, doors or lantern. More detail belongs in a pop-up, not on the card.
 
-## Open
+## Owner's entities
 
-* `dark` is not known yet (default `null`, so the sun decides). Lantern `light.rear_garden`, doors `binary_sensor.door_sensor_garden_doors_contact` (one sensor, both leaves) and `binary_sensor.door_sensor_kitchen_contact` are set; the door sensors report `device_class: window`, which the card ignores (it only reads on = open).
+* Dark: `sensor.outdoor_sensor_illuminance` below 10 lx (the threshold of Bb's Garden Lights automation). Lantern `light.rear_garden`, doors `binary_sensor.door_sensor_garden_doors_contact` (one sensor, both leaves) and `binary_sensor.door_sensor_kitchen_contact` are set; the door sensors report `device_class: window`, which the card ignores (it only reads on = open).
 
 ## Releasing
 
