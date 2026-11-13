@@ -17,7 +17,7 @@
 // Everything sits in one block so the top-level names cannot clash with the
 // sister cards when the files are loaded as classic scripts.
 {
-const VERSION = "0.1.2";
+const VERSION = "0.2.0";
 
 const GH_HOLD_MS = 500;
 const GH_MOVE_PX = 8;
@@ -130,6 +130,15 @@ function ghScene(o) {
   }
   // wall
   s += poly(rect(0, W, 0, 2.95), X("#f2f2f2"), S);
+  // Brick: softened red (between full brick and muted), so it stays in the background.
+  const brick = (x0, x1, y0, y1) => {
+    let g = poly(rect(x0, x1, y0, y1), dark ? "#5c3c34" : "#b47463", T);
+    for (let y = y0 + 0.17; y < y1; y += 0.17) g += line([x0, y, 0], [x1, y, 0], `stroke="${dark ? "#6f4d43" : "#cc988a"}" stroke-width=".45"`);
+    return g;
+  };
+  // outer walls left of the French doors and right of the kitchen window, and under the kitchen side window
+  s += brick(0, 0.45, 0, 2.95) + brick(5.05, W, 0, 2.95) + brick(4.6, 5.05, 0, 0.88);
+  s += poly(rect(0, W, 0, 2.95), "none", S); // outline over the brick
 
   // A door or window unit: thick white frame, black glass, lower panel.
   const unit = (x0, x1, gy0) => {
@@ -231,12 +240,8 @@ function ghScene(o) {
   }
 
   // brick pier between the French doors and the kitchen door, white frame (kozijn) strips on both sides
-  {
-    // between full brick and muted: visible, but in the background
-    s += poly(rect(3.0, 3.85, 0, 2.95), dark ? "#5c3c34" : "#b47463", T);
-    for (let y = 0.17; y < 2.95; y += 0.17) s += line([3.0, y, 0], [3.85, y, 0], `stroke="${dark ? "#6f4d43" : "#cc988a"}" stroke-width=".45"`);
-    s += poly(rect(3.0, 3.07, 0, 2.55), X("#fff"), T) + poly(rect(3.78, 3.85, 0, 2.55), X("#fff"), T);
-  }
+  s += brick(3.0, 3.85, 0, 2.95);
+  s += poly(rect(3.0, 3.07, 0, 2.55), X("#fff"), T) + poly(rect(3.78, 3.85, 0, 2.55), X("#fff"), T);
   // lantern: black housing, cap and bracket; the pane glows while it is on
   {
     const lx0 = 3.34; const lx1 = 3.54; const ly0 = 1.52; const ly1 = 1.82; const lz = 0.12;
