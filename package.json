@@ -1,0 +1,11 @@
+{
+  "name": "gardenview-house",
+  "private": true,
+  "description": "Development only: tests for gardenview-house.js. The card itself has no dependencies.",
+  "scripts": {
+    "test": "node tests/gardenview-house.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}

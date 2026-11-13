@@ -1,0 +1,37 @@
+# Minimal: Bb's sun screen, sun, temperature and wind gusts by default.
+type: custom:gardenview-house
+grid_options:
+  columns: 12
+  rows: 2
+
+---
+# Full: every option, with the doors, lantern and a dark sensor.
+type: custom:gardenview-house
+name: Sun screen
+entities:
+  cover: cover.sun_screen
+  sun: sun.sun
+  temperature: sensor.outdoor_temperature
+  wind_gust: sensor.openweathermap_wind_gust_speed
+  dark: sensor.outdoor_sensor_illuminance   # or a binary_sensor / input_boolean (on = dark)
+  lantern: light.garden_lantern             # placeholder: use the real entity
+  garden_door: binary_sensor.garden_door    # placeholder
+  garden_door_2: null                       # one sensor opens both leaves
+  kitchen_door: binary_sensor.kitchen_door  # placeholder
+wind_warning: 40      # km/h gusts
+dark_below: 50        # lx, only for an illuminance sensor
+retract_offset: 120   # min before sunset; null hides "Up at"
+tap_action:
+  action: more-info
+hold_action:
+  action: more-info
+lantern_tap_action:
+  action: toggle
+lantern_hold_action:
+  action: more-info
+colors:
+  out: orange
+  wind: amber
+grid_options:
+  columns: 12
+  rows: 2
