@@ -232,9 +232,9 @@ function ghScene(o) {
 
   // brick pier between the French doors and the kitchen door, white frame (kozijn) strips on both sides
   {
-    // muted, so it stays in the background
-    s += poly(rect(3.0, 3.85, 0, 2.95), dark ? "#5a4540" : "#c4978b");
-    for (let y = 0.17; y < 2.95; y += 0.17) s += line([3.0, y, 0], [3.85, y, 0], `stroke="${dark ? "#64504a" : "#cfa69b"}" stroke-width=".4"`);
+    // between full brick and muted: visible, but in the background
+    s += poly(rect(3.0, 3.85, 0, 2.95), dark ? "#5c3c34" : "#b47463", T);
+    for (let y = 0.17; y < 2.95; y += 0.17) s += line([3.0, y, 0], [3.85, y, 0], `stroke="${dark ? "#6f4d43" : "#cc988a"}" stroke-width=".45"`);
     s += poly(rect(3.0, 3.07, 0, 2.55), X("#fff"), T) + poly(rect(3.78, 3.85, 0, 2.55), X("#fff"), T);
   }
   // lantern: black housing, cap and bracket; the pane glows while it is on
