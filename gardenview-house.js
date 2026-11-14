@@ -17,7 +17,7 @@
 // Everything sits in one block so the top-level names cannot clash with the
 // sister cards when the files are loaded as classic scripts.
 {
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 const GH_HOLD_MS = 500;
 const GH_MOVE_PX = 8;
@@ -43,6 +43,8 @@ const GH_DEFAULTS = {
     garden_door: "binary_sensor.door_sensor_garden_doors_contact", // French doors (one sensor opens both leaves)
     garden_door_2: null, // optional second leaf of the French doors
     kitchen_door: "binary_sensor.door_sensor_kitchen_contact",
+    dining_light: null, // light behind the French doors; null: lit whenever it is dark
+    kitchen_light: null, // light in the kitchen; null: lit whenever it is dark
   },
 };
 
@@ -116,10 +118,17 @@ function ghScene(o) {
   const dark = !!o.dark;
   // In the dark the house goes grey so the lights stand out.
   const X = (c) => (!dark ? c : ({ "#fff": "#8e8e8e", "#f2f2f2": "#7a7a7a", "#555": "#3a3a3a", "#6a6a6a": "#454545" }[c] || c));
-  const glass = dark ? "#ffb74d" : K;
-  const gOp = dark ? ".85" : "1";
+  // Indoor light per room ("dining" behind the French doors, "kitchen"): in the dark a room only
+  // glows (windows, doorway, room) while its light is on; otherwise the glass stays black.
+  const lit = { dining: dark && !!(o.lit || {}).dining, kitchen: dark && !!(o.lit || {}).kitchen };
+  // By day the glass is silver grey with a light diagonal sheen; in the dark black (or amber while lit).
+  const sheen = `${o.uid || "gh"}-glass`;
+  const glass = (r) => (lit[r] ? "#ffb74d" : dark ? K : `url(#${sheen})`);
+  const gOp = (r) => (lit[r] ? ".85" : "1");
   const doors = o.doors || {};
-  let s = "";
+  let s = `<defs><linearGradient id="${sheen}" x1="0" y1="0" x2="1" y2="1">`
+    + '<stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#a6afb7"/>'
+    + '<stop offset=".55" stop-color="#bcc4ca"/><stop offset="1" stop-color="#8b959e"/></linearGradient></defs>';
 
   // ground, and the screen's shadow on the patio while the sun is up
   s += poly([[-0.3, 0, 0], [W + 0.3, 0, 0], [W + 0.3, 0, 2.6], [-0.3, 0, 2.6]], "#262626");
@@ -141,26 +150,27 @@ function ghScene(o) {
   s += poly(rect(0, W, 0, 2.95), "none", S); // outline over the brick
 
   // A door or window unit: thick white frame, black glass, lower panel.
-  const unit = (x0, x1, gy0) => {
+  const unit = (x0, x1, gy0, r) => {
     let g = poly(rect(x0, x1, 0, 2.03), X("#fff"), S);
-    g += poly(rect(x0 + 0.11, x1 - 0.11, gy0, 1.93), glass, `opacity="${gOp}"`);
+    g += poly(rect(x0 + 0.11, x1 - 0.11, gy0, 1.93), glass(r), `opacity="${gOp(r)}"`);
     if (gy0 < 0.8) g += poly(rect(x0 + 0.13, x1 - 0.13, 0.13, 0.5), X("#fff"), T);
     return g;
   };
   // An open leaf: hinge at hx, width w, swung outward by th degrees (dir +1: free edge to the right).
-  const leaf = (hx, w, dir, th) => {
+  const leaf = (hx, w, dir, th, r) => {
     const t = th * deg;
     const P = (uu, y) => [hx + dir * uu * Math.cos(t), y, uu * Math.sin(t)];
     const R = (u0, u1, y0, y1) => [P(u0, y0), P(u1, y0), P(u1, y1), P(u0, y1)];
-    let g = poly(R(0, w, 0, 2.03), X("#fff"), S) + poly(R(0.11, w - 0.11, 0.62, 1.93), glass, `opacity="${gOp}"`) + poly(R(0.13, w - 0.13, 0.13, 0.5), X("#fff"), T);
-    g += line(P(w - 0.15, 1.0), P(w - 0.15, 1.18), 'stroke="#111" stroke-width="1.6" stroke-linecap="round"');
+    let g = poly(R(0, w, 0, 2.03), X("#fff"), S) + poly(R(0.11, w - 0.11, 0.62, 1.93), glass(r), `opacity="${gOp(r)}"`) + poly(R(0.13, w - 0.13, 0.13, 0.5), X("#fff"), T);
+    g += line(P(w - 0.15, 1.02), P(w - 0.15, 1.14), 'stroke="#333" stroke-width=".9" stroke-linecap="round"');
     return g;
   };
 
-  // ---- the rooms behind the doors (z < 0), lit warm in the dark ----
-  const C = dark
+  // ---- the rooms behind the doors (z < 0): warm while lit in the dark, dim while dark and unlit ----
+  const palette = (r) => (lit[r]
     ? { wall: "#f3e2c0", back: "#ead6b0", ceil: "#d9c39a", floor: "#b98a52" }
-    : { wall: "#d8d4cc", back: "#cfcac0", ceil: "#bdb8ae", floor: "#8f6b45" };
+    : { wall: "#d8d4cc", back: "#cfcac0", ceil: "#bdb8ae", floor: "#8f6b45" });
+  const dim = (r, g) => (dark && !lit[r] ? `<g style="filter:brightness(.3)">${g}</g>` : g);
   const box = (x0, x1, y0, y1, z0, z1, top, face, side) =>
     poly([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], top, T)
     + poly([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]], face, T)
@@ -169,7 +179,7 @@ function ghScene(o) {
     poly([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], top, T)
     + poly([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]], end, T)
     + poly([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], face, T);
-  const room = (x0, x1, d, H) => {
+  const room = (x0, x1, d, H, C) => {
     let g = poly([[x0, H, 0], [x1, H, 0], [x1, H, -d], [x0, H, -d]], C.ceil);
     g += poly([[x0, 0, -d], [x1, 0, -d], [x1, H, -d], [x0, H, -d]], C.back, T);
     g += poly([[x1, 0, 0], [x1, 0, -d], [x1, H, -d], [x1, H, 0]], C.wall, T);
@@ -179,9 +189,9 @@ function ghScene(o) {
     return g;
   };
   const dining = () => {
-    let g = room(-0.6, 6.2, 4.2, 2.7);
+    let g = room(-0.6, 6.2, 4.2, 2.7, palette("dining"));
     g += box(4.2, 5.6, 0, 2.15, -3.75, -4.2, "#eee", "#f6f6f6", "#dcdcdc"); // display cabinet
-    const pane = dark ? "#7a6040" : "#555";
+    const pane = lit.dining ? "#7a6040" : "#555";
     g += poly(rect(4.32, 4.86, 1.0, 2.0, -3.75), pane) + poly(rect(4.94, 5.48, 1.0, 2.0, -3.75), pane);
     g += line([4.3, 0.95, -3.74], [5.5, 0.95, -3.74], T);
     const tc = [3.3, 0.76, -2.0];
@@ -195,26 +205,26 @@ function ghScene(o) {
       const c = proj([px, 1.85, -2.0]);
       const k = proj([px, 2.7, -2.0]);
       g += `<line x1="${ghF(k[0])}" y1="${ghF(k[1])}" x2="${ghF(c[0])}" y2="${ghF(c[1])}" stroke="#111" stroke-width=".7"/>`;
-      if (dark) g += `<circle cx="${ghF(c[0])}" cy="${ghF(c[1] + 2)}" r="7" fill="#ffd54f" opacity=".4"/>`;
+      if (lit.dining) g += `<circle cx="${ghF(c[0])}" cy="${ghF(c[1] + 2)}" r="7" fill="#ffd54f" opacity=".4"/>`;
       g += poly([[px - 0.18, 1.66, -2.0], [px + 0.18, 1.66, -2.0], [px, 1.9, -2.0]], "#2a2a2a", T);
     }
     g += poly([[0.9, 0.01, -0.08], [2.55, 0.01, -0.08], [2.55, 0.01, -0.42], [0.9, 0.01, -0.42]], "#2b2118", T); // floor grille
     for (let x = 1.0; x < 2.55; x += 0.12) g += line([x, 0.012, -0.1], [x, 0.012, -0.4], 'stroke="#b98a52" stroke-width=".5"');
-    return g;
+    return dim("dining", g);
   };
   const kitchen = () => {
-    let g = room(3.6, 6.6, 3.4, 2.6);
+    let g = room(3.6, 6.6, 3.4, 2.6, palette("kitchen"));
     g += poly([[6.59, 0.92, -0.2], [6.59, 0.92, -3.4], [6.59, 1.5, -3.4], [6.59, 1.5, -0.2]], "#8fd3c7", T); // mint tiles
     g += boxL(6.0, 6.6, 0, 0.86, -0.2, -3.4, "#f6f6f6", "#f6f6f6", "#e6e6e6"); // base units
     g += boxL(5.96, 6.6, 0.86, 0.93, -0.2, -3.4, "#141414", "#141414", "#141414"); // black worktop
     g += boxL(6.25, 6.6, 1.55, 2.3, -0.2, -3.4, "#f6f6f6", "#f6f6f6", "#e6e6e6"); // wall units
     for (let z = -0.8; z > -3.3; z -= 0.6) g += line([6.0, 0.1, z], [6.0, 0.8, z], T) + line([6.25, 1.6, z], [6.25, 2.25, z], T);
     g += boxL(6.1, 6.35, 0.93, 1.12, -1.5, -1.75, "#1565c0", "#1976d2", "#0d47a1"); // kettle
-    return g;
+    return dim("kitchen", g);
   };
   let clip = 0;
-  const door = (x0, x1, isOpen, inner) => {
-    if (!isOpen) return unit(x0, x1, 0.62);
+  const door = (x0, x1, isOpen, inner, r) => {
+    if (!isOpen) return unit(x0, x1, 0.62, r);
     const id = `${o.uid || "gh"}-c${clip++}`;
     return `<clipPath id="${id}"><polygon points="${pts(rect(x0, x1, 0, 2.03))}"/></clipPath>`
       + `<g clip-path="url(#${id})">${inner()}</g>` + poly(rect(x0, x1, 0, 2.03), "none", S);
@@ -222,21 +232,21 @@ function ghScene(o) {
   const g1 = !!doors.g1;
   const g2 = !!doors.g2;
   const k = !!doors.k;
-  s += unit(0.45, 0.9, 0.62) + unit(2.55, 3.0, 0.62); // side lights of the French doors
-  s += door(0.9, 1.725, g1, dining);
-  s += door(1.725, 2.55, g2, dining);
-  s += door(3.85, 4.6, k, kitchen);
+  s += unit(0.45, 0.9, 0.62, "dining") + unit(2.55, 3.0, 0.62, "dining"); // side lights of the French doors
+  s += door(0.9, 1.725, g1, dining, "dining");
+  s += door(1.725, 2.55, g2, dining, "dining");
+  s += door(3.85, 4.6, k, kitchen, "kitchen");
   // open leaves after the doorways, so they sit in front of them
-  if (g1) s += leaf(0.9, 0.825, 1, 95);
-  if (g2) s += leaf(2.55, 0.825, -1, 95);
-  if (k) s += leaf(4.6, 0.75, -1, 95); // kitchen door: hinge on the right
+  if (g1) s += leaf(0.9, 0.825, 1, 95, "dining");
+  if (g2) s += leaf(2.55, 0.825, -1, 95, "dining");
+  if (k) s += leaf(4.6, 0.75, -1, 95, "kitchen"); // kitchen door: hinge on the right
   // kitchen side window, transoms, handles of the closed doors
-  s += poly(rect(4.6, 5.05, 0.88, 2.03), X("#fff"), S) + poly(rect(4.69, 4.96, 0.98, 1.93), glass, `opacity="${gOp}"`);
-  for (const [a, b] of [[0.45, 0.9], [0.9, 2.55], [2.55, 3.0], [3.85, 4.6], [4.6, 5.05]]) {
-    s += poly(rect(a, b, 2.03, 2.55), X("#fff"), S) + poly(rect(a + 0.09, b - 0.09, 2.12, 2.46), glass, `opacity="${gOp}"`);
+  s += poly(rect(4.6, 5.05, 0.88, 2.03), X("#fff"), S) + poly(rect(4.69, 4.96, 0.98, 1.93), glass("kitchen"), `opacity="${gOp("kitchen")}"`);
+  for (const [a, b, r] of [[0.45, 0.9, "dining"], [0.9, 2.55, "dining"], [2.55, 3.0, "dining"], [3.85, 4.6, "kitchen"], [4.6, 5.05, "kitchen"]]) {
+    s += poly(rect(a, b, 2.03, 2.55), X("#fff"), S) + poly(rect(a + 0.09, b - 0.09, 2.12, 2.46), glass(r), `opacity="${gOp(r)}"`);
   }
   for (const x of [g1 ? null : 1.6, g2 ? null : 1.85, k ? null : 3.98]) {
-    if (x !== null) s += line([x, 1.0, 0.02], [x, 1.18, 0.02], 'stroke="#111" stroke-width="1.6" stroke-linecap="round"');
+    if (x !== null) s += line([x, 1.02, 0.02], [x, 1.14, 0.02], 'stroke="#333" stroke-width=".9" stroke-linecap="round"');
   }
 
   // brick pier between the French doors and the kitchen door, white frame (kozijn) strips on both sides
@@ -831,6 +841,11 @@ class GardenviewHouse extends HTMLElement {
     return {
       unavailable, out, moving, target, travelling: !!t, sunUp, elevation, dark, gust, windy, temp, retract,
       lamp: this._on("lantern"), doors: doorsKnown,
+      // a room is lit in the dark while its light is on; without a light entity, whenever it is dark
+      lit: {
+        dining: dark && (this._config.entities.dining_light ? this._on("dining_light") : true),
+        kitchen: dark && (this._config.entities.kitchen_light ? this._on("kitchen_light") : true),
+      },
     };
   }
 
@@ -845,7 +860,7 @@ class GardenviewHouse extends HTMLElement {
 
     // Picture: only redrawn when something in it changes.
     const scene = {
-      out: st.out, target, windy: st.windy, dark: st.dark, sunUp: st.sunUp, lamp: st.lamp, doors: st.doors, uid: this._uid,
+      out: st.out, target, windy: st.windy, dark: st.dark, sunUp: st.sunUp, lamp: st.lamp, doors: st.doors, lit: st.lit, uid: this._uid,
     };
     const key = JSON.stringify(scene);
     if (key !== this._sceneKey) {
@@ -933,6 +948,8 @@ const GH_ENTITY_FIELDS = [
   ["garden_door", "Garden doors", ["binary_sensor"]],
   ["garden_door_2", "Garden doors, second leaf (optional)", ["binary_sensor"]],
   ["kitchen_door", "Kitchen door", ["binary_sensor"]],
+  ["dining_light", "Light behind the French doors (empty: lit when dark)", ["light", "switch", "binary_sensor", "input_boolean"]],
+  ["kitchen_light", "Kitchen light (empty: lit when dark)", ["light", "switch", "binary_sensor", "input_boolean"]],
 ];
 const GH_REQUIRED = ["cover"];
 

@@ -16,7 +16,7 @@ It replaces a Mushroom cover card with card_mod. One JavaScript file, no depende
 | Wind | Gusts of `wind_warning` km/h or more: yellow hem, wind lines, the cloth sways, `Gusts 52 km/h`, and the up button is highlighted while the screen is out |
 | Doors | An open door swings out and shows the room behind it (dining room behind the French doors, kitchen behind the kitchen door) |
 | Lantern | The pane lights up while the lantern is on |
-| Dark | The house goes grey, the windows, rooms and lantern stay lit, the card dims a little. Sun or moon in the sky |
+| Dark | The house goes grey and the card dims a little. Windows and open doorways glow only while that room's light is on (`dining_light`, `kitchen_light`; without them, whenever it is dark); the lantern while it is on. Sun or moon in the sky |
 
 ## Using it
 
@@ -74,6 +74,8 @@ That is all for the owner's own house. Everything else is optional, in YAML or t
 | `garden_door` | `binary_sensor.door_sensor_garden_doors_contact` | French doors; one sensor opens both leaves. Any device class works (on = open) |
 | `garden_door_2` | none | second leaf of the French doors, if it has its own sensor |
 | `kitchen_door` | `binary_sensor.door_sensor_kitchen_contact` | |
+| `dining_light` | none | light (or switch, binary sensor, input boolean) behind the French doors. In the dark that room glows only while it is on. None: lit whenever it is dark |
+| `kitchen_light` | none | the same for the kitchen door and window |
 
 A full example is in [`gardenview-house.yaml`](gardenview-house.yaml).
 
@@ -82,7 +84,7 @@ A full example is in [`gardenview-house.yaml`](gardenview-house.yaml).
 | Decision | Why |
 |---|---|
 | A drawing of the real facade instead of an icon | the card tells at a glance whether the screen is out, and the doors and lantern come along for free |
-| Line art: white surfaces, bold black outlines, black glass | the same style as the car in the Tesla Model 3 Card; the ground floor wall is softened red brick with the white frames as edges, like the real wall |
+| Line art: white surfaces, bold black outlines; silver glass by day, black in the dark | the same style as the car in the Tesla Model 3 Card; the ground floor wall is softened red brick with the white frames as edges, like the real wall |
 | Camera about 25 degrees off straight on | at 45 degrees the open leaves cover the doorway and the room behind it does not show |
 | Solid grey cloth, colour only in the hem | the real cloth is grey with light stripes; the orange hem says "out" without painting the whole picture |
 | Drag on the picture instead of a slider | a slider looked like a light dimmer |

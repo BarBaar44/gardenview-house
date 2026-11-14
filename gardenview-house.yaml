@@ -18,6 +18,8 @@ entities:
   garden_door: binary_sensor.door_sensor_garden_doors_contact
   garden_door_2: null                       # one sensor opens both leaves
   kitchen_door: binary_sensor.door_sensor_kitchen_contact
+  dining_light: light.dining_room            # placeholder: the light behind the French doors
+  kitchen_light: light.kitchen               # placeholder
 wind_warning: 40      # km/h gusts
 dark_below: 10        # lx, only for an illuminance sensor
 retract_offset: 120   # min before sunset; null hides "Up at"
