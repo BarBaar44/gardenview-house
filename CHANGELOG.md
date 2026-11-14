@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.1
+
+- Indoor lights as entities: new roles `dining_light` (behind the French doors) and `kitchen_light`. In the dark a room only glows (windows, transoms, open doorway, pendant lamps) while its light is on; with the light off its glass stays black and an open doorway shows the room dimmed. Without a light entity a room is lit whenever it is dark, as before. Both in the visual editor.
+
 ## v0.2.0
 
 - The whole ground floor wall is now drawn as brick, like the real house: the walls left of the French doors and right of the kitchen window, and the strip under the kitchen side window, in the same softened red brick as the pier with the lantern. The white door and window frames form the edge.
