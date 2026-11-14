@@ -121,10 +121,14 @@ function ghScene(o) {
   // Indoor light per room ("dining" behind the French doors, "kitchen"): in the dark a room only
   // glows (windows, doorway, room) while its light is on; otherwise the glass stays black.
   const lit = { dining: dark && !!(o.lit || {}).dining, kitchen: dark && !!(o.lit || {}).kitchen };
-  const glass = (r) => (lit[r] ? "#ffb74d" : K);
+  // By day the glass is silver grey with a light diagonal sheen; in the dark black (or amber while lit).
+  const sheen = `${o.uid || "gh"}-glass`;
+  const glass = (r) => (lit[r] ? "#ffb74d" : dark ? K : `url(#${sheen})`);
   const gOp = (r) => (lit[r] ? ".85" : "1");
   const doors = o.doors || {};
-  let s = "";
+  let s = `<defs><linearGradient id="${sheen}" x1="0" y1="0" x2="1" y2="1">`
+    + '<stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#a6afb7"/>'
+    + '<stop offset=".55" stop-color="#bcc4ca"/><stop offset="1" stop-color="#8b959e"/></linearGradient></defs>';
 
   // ground, and the screen's shadow on the patio while the sun is up
   s += poly([[-0.3, 0, 0], [W + 0.3, 0, 0], [W + 0.3, 0, 2.6], [-0.3, 0, 2.6]], "#262626");
@@ -158,7 +162,7 @@ function ghScene(o) {
     const P = (uu, y) => [hx + dir * uu * Math.cos(t), y, uu * Math.sin(t)];
     const R = (u0, u1, y0, y1) => [P(u0, y0), P(u1, y0), P(u1, y1), P(u0, y1)];
     let g = poly(R(0, w, 0, 2.03), X("#fff"), S) + poly(R(0.11, w - 0.11, 0.62, 1.93), glass(r), `opacity="${gOp(r)}"`) + poly(R(0.13, w - 0.13, 0.13, 0.5), X("#fff"), T);
-    g += line(P(w - 0.15, 1.0), P(w - 0.15, 1.18), 'stroke="#111" stroke-width="1.6" stroke-linecap="round"');
+    g += line(P(w - 0.15, 1.02), P(w - 0.15, 1.14), 'stroke="#333" stroke-width=".9" stroke-linecap="round"');
     return g;
   };
 
@@ -242,7 +246,7 @@ function ghScene(o) {
     s += poly(rect(a, b, 2.03, 2.55), X("#fff"), S) + poly(rect(a + 0.09, b - 0.09, 2.12, 2.46), glass(r), `opacity="${gOp(r)}"`);
   }
   for (const x of [g1 ? null : 1.6, g2 ? null : 1.85, k ? null : 3.98]) {
-    if (x !== null) s += line([x, 1.0, 0.02], [x, 1.18, 0.02], 'stroke="#111" stroke-width="1.6" stroke-linecap="round"');
+    if (x !== null) s += line([x, 1.02, 0.02], [x, 1.14, 0.02], 'stroke="#333" stroke-width=".9" stroke-linecap="round"');
   }
 
   // brick pier between the French doors and the kitchen door, white frame (kozijn) strips on both sides

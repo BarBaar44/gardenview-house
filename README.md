@@ -84,7 +84,7 @@ A full example is in [`gardenview-house.yaml`](gardenview-house.yaml).
 | Decision | Why |
 |---|---|
 | A drawing of the real facade instead of an icon | the card tells at a glance whether the screen is out, and the doors and lantern come along for free |
-| Line art: white surfaces, bold black outlines, black glass | the same style as the car in the Tesla Model 3 Card; the ground floor wall is softened red brick with the white frames as edges, like the real wall |
+| Line art: white surfaces, bold black outlines; silver glass by day, black in the dark | the same style as the car in the Tesla Model 3 Card; the ground floor wall is softened red brick with the white frames as edges, like the real wall |
 | Camera about 25 degrees off straight on | at 45 degrees the open leaves cover the doorway and the room behind it does not show |
 | Solid grey cloth, colour only in the hem | the real cloth is grey with light stripes; the orange hem says "out" without painting the whole picture |
 | Drag on the picture instead of a slider | a slider looked like a light dimmer |

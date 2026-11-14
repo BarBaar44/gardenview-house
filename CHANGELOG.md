@@ -3,6 +3,7 @@
 ## v0.2.1
 
 - Indoor lights as entities: new roles `dining_light` (behind the French doors) and `kitchen_light`. In the dark a room only glows (windows, transoms, open doorway, pendant lamps) while its light is on; with the light off its glass stays black and an open doorway shows the room dimmed. Without a light entity a room is lit whenever it is dark, as before. Both in the visual editor.
+- Daytime glass is silver grey with a light sheen instead of black, so day and night read apart at a glance; the door handles are thin dark levers. In the dark, unlit glass stays black.
 
 ## v0.2.0
 

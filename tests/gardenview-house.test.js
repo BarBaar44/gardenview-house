@@ -316,6 +316,11 @@ test("indoor lights: in the dark a room glows only while its light is on", () =>
   assert.strictEqual(amber(read(render(states({ sun: "below_horizon" }), { entities: { lantern: null } }))), all);
   // daytime: never amber, lights or not
   assert.strictEqual(amber(read(render(states({ extra: { "light.dining": st("on"), "light.kitchen": st("on") } }), { entities: ent }))), 0);
+  // daytime glass is silver grey (a gradient), not black; unlit glass in the dark is black
+  const day = read(render(states(), { entities: ent })).scene;
+  assert(/fill="url\(#gh[a-z0-9]+-glass\)"/.test(day), "silver glass by day");
+  const night = read(render(s("off", "off"), { entities: ent })).scene;
+  assert(!/-glass\)"/.test(night), "no silver at night");
   // an open door onto an unlit room shows it dimmed
   const open = states({ sun: "below_horizon", extra: { "light.dining": st("off"), "light.kitchen": st("off"),
     "binary_sensor.door_sensor_garden_doors_contact": st("on") } });
