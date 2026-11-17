@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.2
+
+- Fix (#6): a configured `dining_light` or `kitchen_light` that is on now always shows, not only once the card counts it as dark. At dusk an illuminance sensor can stay above `dark_below` for a while after the lights go on; the windows stayed unlit all that time. Day + on is a faint warm tint behind the silver glass (and lit bulbs in the pendant lamps when the garden doors are open); dark + on glows as before; off is unlit, day or night. Without a light entity nothing changes: a room counts as lit whenever it is dark.
+
 ## v0.2.1
 
 - Indoor lights as entities: new roles `dining_light` (behind the French doors) and `kitchen_light`. In the dark a room only glows (windows, transoms, open doorway, pendant lamps) while its light is on; with the light off its glass stays black and an open doorway shows the room dimmed. Without a light entity a room is lit whenever it is dark, as before. Both in the visual editor.

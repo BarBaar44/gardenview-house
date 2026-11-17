@@ -17,7 +17,7 @@
 // Everything sits in one block so the top-level names cannot clash with the
 // sister cards when the files are loaded as classic scripts.
 {
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 const GH_HOLD_MS = 500;
 const GH_MOVE_PX = 8;
@@ -118,17 +118,24 @@ function ghScene(o) {
   const dark = !!o.dark;
   // In the dark the house goes grey so the lights stand out.
   const X = (c) => (!dark ? c : ({ "#fff": "#8e8e8e", "#f2f2f2": "#7a7a7a", "#555": "#3a3a3a", "#6a6a6a": "#454545" }[c] || c));
-  // Indoor light per room ("dining" behind the French doors, "kitchen"): in the dark a room only
-  // glows (windows, doorway, room) while its light is on; otherwise the glass stays black.
-  const lit = { dining: dark && !!(o.lit || {}).dining, kitchen: dark && !!(o.lit || {}).kitchen };
+  // Indoor light per room ("dining" behind the French doors, "kitchen"), from o.lit: true = on.
+  // On in the dark: the room glows (amber glass, warm room, pendant halos). On by day: a faint warm
+  // tint behind the silver glass, so it shows without looking like night. Off: unlit, day or night.
+  const L = o.lit || {};
+  const lit = { dining: dark && !!L.dining, kitchen: dark && !!L.kitchen };
+  const onByDay = { dining: !dark && !!L.dining, kitchen: !dark && !!L.kitchen };
   // By day the glass is silver grey with a light diagonal sheen; in the dark black (or amber while lit).
   const sheen = `${o.uid || "gh"}-glass`;
-  const glass = (r) => (lit[r] ? "#ffb74d" : dark ? K : `url(#${sheen})`);
+  const warm = `${o.uid || "gh"}-glass-on`;
+  const glass = (r) => (lit[r] ? "#ffb74d" : dark ? K : `url(#${onByDay[r] ? warm : sheen})`);
   const gOp = (r) => (lit[r] ? ".85" : "1");
   const doors = o.doors || {};
   let s = `<defs><linearGradient id="${sheen}" x1="0" y1="0" x2="1" y2="1">`
     + '<stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#a6afb7"/>'
-    + '<stop offset=".55" stop-color="#bcc4ca"/><stop offset="1" stop-color="#8b959e"/></linearGradient></defs>';
+    + '<stop offset=".55" stop-color="#bcc4ca"/><stop offset="1" stop-color="#8b959e"/></linearGradient>'
+    + `<linearGradient id="${warm}" x1="0" y1="0" x2="1" y2="1">`
+    + '<stop offset="0" stop-color="#dcd6c8"/><stop offset=".45" stop-color="#bdb19a"/>'
+    + '<stop offset=".55" stop-color="#cfc4ad"/><stop offset="1" stop-color="#a59a86"/></linearGradient></defs>';
 
   // ground, and the screen's shadow on the patio while the sun is up
   s += poly([[-0.3, 0, 0], [W + 0.3, 0, 0], [W + 0.3, 0, 2.6], [-0.3, 0, 2.6]], "#262626");
@@ -207,6 +214,7 @@ function ghScene(o) {
       g += `<line x1="${ghF(k[0])}" y1="${ghF(k[1])}" x2="${ghF(c[0])}" y2="${ghF(c[1])}" stroke="#111" stroke-width=".7"/>`;
       if (lit.dining) g += `<circle cx="${ghF(c[0])}" cy="${ghF(c[1] + 2)}" r="7" fill="#ffd54f" opacity=".4"/>`;
       g += poly([[px - 0.18, 1.66, -2.0], [px + 0.18, 1.66, -2.0], [px, 1.9, -2.0]], "#2a2a2a", T);
+      if (onByDay.dining) { const b = proj([px, 1.63, -2.0]); g += `<circle class="bulb" cx="${ghF(b[0])}" cy="${ghF(b[1])}" r="1.2" fill="#ffd54f"/>`; }
     }
     g += poly([[0.9, 0.01, -0.08], [2.55, 0.01, -0.08], [2.55, 0.01, -0.42], [0.9, 0.01, -0.42]], "#2b2118", T); // floor grille
     for (let x = 1.0; x < 2.55; x += 0.12) g += line([x, 0.012, -0.1], [x, 0.012, -0.4], 'stroke="#b98a52" stroke-width=".5"');
@@ -841,10 +849,11 @@ class GardenviewHouse extends HTMLElement {
     return {
       unavailable, out, moving, target, travelling: !!t, sunUp, elevation, dark, gust, windy, temp, retract,
       lamp: this._on("lantern"), doors: doorsKnown,
-      // a room is lit in the dark while its light is on; without a light entity, whenever it is dark
+      // A configured light shows whenever it is on, day or night (the scene draws day + on as a faint
+      // warm tint). Without a light entity a room counts as lit whenever it is dark.
       lit: {
-        dining: dark && (this._config.entities.dining_light ? this._on("dining_light") : true),
-        kitchen: dark && (this._config.entities.kitchen_light ? this._on("kitchen_light") : true),
+        dining: this._config.entities.dining_light ? this._on("dining_light") : dark,
+        kitchen: this._config.entities.kitchen_light ? this._on("kitchen_light") : dark,
       },
     };
   }

@@ -327,6 +327,30 @@ test("indoor lights: in the dark a room glows only while its light is on", () =>
   assert(/filter:brightness\(\.3\)/.test(read(render(open, { entities: ent })).scene));
 });
 
+test("indoor lights by day: a configured light that is on shows as a faint warm tint (issue #6)", () => {
+  const ent = { dining_light: "light.dining", kitchen_light: "light.kitchen", lantern: null };
+  const day = (d, k) => states({ extra: { "light.dining": st(d), "light.kitchen": st(k) } });
+  const warm = (r) => (r.scene.match(/-glass-on\)"/g) || []).length;
+  const silver = (r) => (r.scene.match(/-glass\)"/g) || []).length;
+  const both = read(render(day("on", "on"), { entities: ent }));
+  assert(warm(both) > 0 && silver(both) === 0, "day + on: warm tint, no plain silver");
+  assert(!/fill="#ffb74d"/.test(both.scene), "day + on does not look like night");
+  const openDoors = states({ extra: { "light.dining": st("on"), "binary_sensor.garden": st("on") } });
+  assert(/class="bulb"/.test(read(render(openDoors, { entities: { ...ent, garden_door: "binary_sensor.garden" } })).scene), "open doors: pendant bulbs on");
+  assert(!/class="bulb"/.test(both.scene), "doors shut: the room is not drawn");
+  const kOnly = read(render(day("off", "on"), { entities: ent }));
+  assert(warm(kOnly) > 0 && silver(kOnly) > 0, "kitchen tinted, dining silver");
+  const off = read(render(day("off", "off"), { entities: ent }));
+  assert.strictEqual(warm(off), 0, "day + off: plain silver");
+  // the dusk case from the issue: sun down, illuminance still above dark_below, lights on
+  const dusk = states({ sun: "below_horizon", extra: {
+    "light.dining": st("on"), "light.kitchen": st("on"), "sensor.lux": st(69, { unit_of_measurement: "lx" }) } });
+  const r = read(render(dusk, { entities: { ...ent, dark: "sensor.lux" } }));
+  assert(!r.dark && warm(r) > 0, "not dark yet, lights shown as on");
+  // no entity configured: today's fallback, no tint by day
+  assert.strictEqual(warm(read(render(states(), { entities: { lantern: null } }))), 0);
+});
+
 test("lantern: pane lit while on; tap area hidden without an entity", () => {
   const ent = { lantern: "light.lantern" };
   const on = render(states({ extra: { "light.lantern": st("on") } }), { entities: ent });
