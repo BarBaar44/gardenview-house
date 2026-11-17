@@ -314,8 +314,9 @@ test("indoor lights: in the dark a room glows only while its light is on", () =>
   assert(kOnly > 0 && kOnly < all, `kitchen only: ${kOnly} of ${all}`);
   // without light entities: lit whenever it is dark (as before)
   assert.strictEqual(amber(read(render(states({ sun: "below_horizon" }), { entities: { lantern: null } }))), all);
-  // daytime: never amber, lights or not
-  assert.strictEqual(amber(read(render(states({ extra: { "light.dining": st("on"), "light.kitchen": st("on") } }), { entities: ent }))), 0);
+  // daytime: lights on glow in the same colours as in the dark; off, no amber
+  assert.strictEqual(amber(read(render(states({ extra: { "light.dining": st("on"), "light.kitchen": st("on") } }), { entities: ent }))), all);
+  assert.strictEqual(amber(read(render(states({ extra: { "light.dining": st("off"), "light.kitchen": st("off") } }), { entities: ent }))), 0);
   // daytime glass is silver grey (a gradient), not black; unlit glass in the dark is black
   const day = read(render(states(), { entities: ent })).scene;
   assert(/fill="url\(#gh[a-z0-9]+-glass\)"/.test(day), "silver glass by day");
@@ -327,28 +328,28 @@ test("indoor lights: in the dark a room glows only while its light is on", () =>
   assert(/filter:brightness\(\.3\)/.test(read(render(open, { entities: ent })).scene));
 });
 
-test("indoor lights by day: a configured light that is on shows as a faint warm tint (issue #6)", () => {
+test("indoor lights by day: a configured light that is on glows as in the dark (issue #6)", () => {
   const ent = { dining_light: "light.dining", kitchen_light: "light.kitchen", lantern: null };
   const day = (d, k) => states({ extra: { "light.dining": st(d), "light.kitchen": st(k) } });
-  const warm = (r) => (r.scene.match(/-glass-on\)"/g) || []).length;
+  const amber = (r) => (r.scene.match(/fill="#ffb74d"/g) || []).length;
   const silver = (r) => (r.scene.match(/-glass\)"/g) || []).length;
   const both = read(render(day("on", "on"), { entities: ent }));
-  assert(warm(both) > 0 && silver(both) === 0, "day + on: warm tint, no plain silver");
-  assert(!/fill="#ffb74d"/.test(both.scene), "day + on does not look like night");
-  const openDoors = states({ extra: { "light.dining": st("on"), "binary_sensor.garden": st("on") } });
-  assert(/class="bulb"/.test(read(render(openDoors, { entities: { ...ent, garden_door: "binary_sensor.garden" } })).scene), "open doors: pendant bulbs on");
-  assert(!/class="bulb"/.test(both.scene), "doors shut: the room is not drawn");
+  assert(amber(both) > 0 && silver(both) === 0, "day + on: amber glass, no silver");
+  assert(!both.dark, "the house itself stays in daytime colours");
   const kOnly = read(render(day("off", "on"), { entities: ent }));
-  assert(warm(kOnly) > 0 && silver(kOnly) > 0, "kitchen tinted, dining silver");
-  const off = read(render(day("off", "off"), { entities: ent }));
-  assert.strictEqual(warm(off), 0, "day + off: plain silver");
+  assert(amber(kOnly) > 0 && silver(kOnly) > 0, "kitchen amber, dining silver");
+  assert.strictEqual(amber(read(render(day("off", "off"), { entities: ent }))), 0, "day + off: silver");
+  // open doors by day with the light on: warm room and pendant halos, as in the dark
+  const openDoors = states({ extra: { "light.dining": st("on"), "binary_sensor.garden": st("on") } });
+  const o = read(render(openDoors, { entities: { ...ent, garden_door: "binary_sensor.garden" } })).scene;
+  assert(/fill="#f3e2c0"/.test(o) && /fill="#ffd54f" opacity="\.4"/.test(o), "warm room and halos");
   // the dusk case from the issue: sun down, illuminance still above dark_below, lights on
   const dusk = states({ sun: "below_horizon", extra: {
     "light.dining": st("on"), "light.kitchen": st("on"), "sensor.lux": st(69, { unit_of_measurement: "lx" }) } });
   const r = read(render(dusk, { entities: { ...ent, dark: "sensor.lux" } }));
-  assert(!r.dark && warm(r) > 0, "not dark yet, lights shown as on");
-  // no entity configured: today's fallback, no tint by day
-  assert.strictEqual(warm(read(render(states(), { entities: { lantern: null } }))), 0);
+  assert(!r.dark && amber(r) > 0, "not dark yet, lights shown as on");
+  // no entity configured: today's fallback, nothing lit by day
+  assert.strictEqual(amber(read(render(states(), { entities: { lantern: null } }))), 0);
 });
 
 test("lantern: pane lit while on; tap area hidden without an entity", () => {

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+
+- A configured indoor light that is on is now clearly visible by day: the same amber glass, warm room and pendant halos as in the dark, instead of the faint warm tint of v0.2.2. Only the house around it follows day or dark. Off is unchanged: silver glass by day, black in the dark.
+
 ## v0.2.2
 
 - Fix (#6): a configured `dining_light` or `kitchen_light` that is on now always shows, not only once the card counts it as dark. At dusk an illuminance sensor can stay above `dark_below` for a while after the lights go on; the windows stayed unlit all that time. Day + on is a faint warm tint behind the silver glass (and lit bulbs in the pendant lamps when the garden doors are open); dark + on glows as before; off is unlit, day or night. Without a light entity nothing changes: a room counts as lit whenever it is dark.
